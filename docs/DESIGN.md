@@ -72,3 +72,11 @@ issued without lowering that item's stock (it would then also have no ledger ent
 - `Role` enum + `validRoles()` in rules → add e.g. `storeKeeper`, `locationLead`.
 - `schemaVersion` on the org → forward-only migrations.
 - Multi-school: already multi-tenant (`orgs/{orgId}`), so publishing for other schools needs no data change.
+
+## Parked for V2 (decided 22 Oct 2026 — revisit after the school's first real use)
+- **Notifications.** Preferred: Cloud Functions + FCM push (needs Blaze plan; set a budget alert) —
+  incharge: new demand/receipt to approve; supervisor: approved/rejected; both: low stock;
+  optional morning summary. Fallback without Blaze: WorkManager ~15-min background check + local
+  notification (delayed; ColorOS battery limits).
+- **Reports.** Monthly stock statement per item (opening + received − issued ± adjustments =
+  closing) as printable PDF + CSV; one-tap current-stock export.
