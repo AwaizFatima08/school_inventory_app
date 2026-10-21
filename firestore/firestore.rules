@@ -1,0 +1,310 @@
+rules_version = '2';
+
+// School Inventory — Firestore security rules (schemaVersion 1).
+//
+// Data lives under /orgs/{orgId} so many schools can use one backend.
+// Roles (members/{uid}.role): 'incharge' | 'supervisor' | 'viewer'.
+// Admin rights are a separate flag (members/{uid}.isAdmin) so they stay with
+// one person while the incharge role rotates.
+//
+// Stock integrity: an item's currentStock may change ONLY in the same write
+// batch that moves a demand approved→issued (supervisor), a receipt
+// pending→approved (incharge) or creates an adjustment (incharge); the
+// change must equal that document's line for the item, stock can never go
+// below zero, and a matching immutable ledger entry is written alongside.
+// Each document carries at most 10 lines (keeps every batch under the
+// 20 document-access limit of security rules).
+//
+// V2 hooks: add roles to validRoles(); 'locations' is already protected.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- helpers ----------
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function docs() { return /databases/$(database)/documents; }
+    function orgPath(o) { return /databases/$(database)/documents/orgs/$(o); }
+    function selfMemberPath(o) { return /databases/$(database)/documents/orgs/$(o)/members/$(uid()); }
+
+    function me(o) { return get(selfMemberPath(o)).data; }
+    function isActive(o) {
+      return signedIn() && exists(selfMemberPath(o)) && me(o).status == 'active';
+    }
+    function hasRole(o, r) { return isActive(o) && me(o).role == r; }
+    function isSupervisor(o) { return hasRole(o, 'supervisor'); }
+    function isIncharge(o) { return hasRole(o, 'incharge'); }
+    function isOperator(o) { return isActive(o) && me(o).role in ['supervisor', 'incharge']; }
+    function isAdmin(o) { return isActive(o) && me(o).isAdmin == true; }
+
+    function validRoles() { return ['incharge', 'supervisor', 'viewer']; }
+    function newData() { return request.resource.data; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function str(v, min, max) { return v is string && v.size() >= min && v.size() <= max; }
+    function nat(v) { return v is int && v >= 0; }
+    function sameLineKeys() {
+      return newData().lines.keys().hasOnly(resource.data.lines.keys())
+          && newData().lines.size() == resource.data.lines.size();
+    }
+    function validLines(lines) { return lines is map && lines.size() >= 1 && lines.size() <= 10; }
+
+    // ---------- user profile (own only) ----------
+    match /users/{userId} {
+      allow read, delete: if signedIn() && uid() == userId;
+      allow create, update: if signedIn() && uid() == userId
+        && newData().keys().hasOnly(['displayName', 'email', 'orgId', 'updatedAt'])
+        && str(newData().displayName, 1, 80);
+    }
+
+    // ---------- join codes: lookup a school by its short code ----------
+    match /joinCodes/{code} {
+      allow get: if signedIn();
+      allow list, update, delete: if false;
+      allow create: if signedIn()
+        && newData().keys().hasOnly(['orgId', 'orgName'])
+        && !exists(orgPath(newData().orgId))
+        && getAfter(orgPath(newData().orgId)).data.createdBy == uid()
+        && getAfter(orgPath(newData().orgId)).data.joinCode == code;
+    }
+
+    // ---------- organisation (school) ----------
+    match /orgs/{orgId} {
+      allow read: if signedIn() && exists(selfMemberPath(orgId));
+      allow create: if signedIn()
+        && newData().keys().hasOnly(['name', 'joinCode', 'createdBy', 'createdAt', 'modules', 'schemaVersion'])
+        && newData().createdBy == uid()
+        && str(newData().name, 2, 100)
+        && newData().createdAt == request.time
+        && getAfter(selfMemberPath(orgId)).data.isAdmin == true;
+      allow update: if isAdmin(orgId) && changed().hasOnly(['name']) && str(newData().name, 2, 100);
+      allow delete: if false;
+
+      // ---------- members (people who sign in) ----------
+      match /members/{memberId} {
+        function memberKeys() {
+          return newData().keys().hasOnly(['uid', 'displayName', 'email', 'role', 'isAdmin', 'status',
+            'requestedRole', 'locationIds', 'createdAt', 'approvedBy', 'approvedAt']);
+        }
+        allow read: if signedIn() && (memberId == uid() || isActive(orgId));
+
+        allow create: if signedIn() && memberId == uid() && memberKeys()
+          && newData().uid == uid()
+          && str(newData().displayName, 1, 80)
+          && newData().createdAt == request.time
+          && (
+            // Founder: creates the school in the same batch, becomes incharge + admin.
+            (!exists(orgPath(orgId))
+              && getAfter(orgPath(orgId)).data.createdBy == uid()
+              && newData().status == 'active' && newData().isAdmin == true
+              && newData().role == 'incharge')
+            ||
+            // Anyone else: a pending request that an admin must approve.
+            (exists(orgPath(orgId))
+              && newData().status == 'pending' && newData().isAdmin == false
+              && newData().role == 'viewer'
+              && newData().requestedRole in validRoles())
+          );
+
+        allow update: if
+          // Admin approves / changes role / disables / grants admin.
+          (isAdmin(orgId)
+            && changed().hasOnly(['role', 'isAdmin', 'status', 'approvedBy', 'approvedAt', 'locationIds'])
+            && newData().role in validRoles()
+            && newData().status in ['pending', 'active', 'disabled']
+            && newData().isAdmin is bool
+            // An admin cannot lock themself out.
+            && (memberId != uid() || (newData().isAdmin == true && newData().status == 'active')))
+          ||
+          // Anyone may fix the spelling of their own name.
+          (signedIn() && memberId == uid() && changed().hasOnly(['displayName'])
+            && str(newData().displayName, 1, 80));
+
+        // Admin removes a request / member; a pending user may withdraw.
+        allow delete: if (isAdmin(orgId) && memberId != uid())
+          || (signedIn() && memberId == uid() && resource.data.status == 'pending');
+      }
+
+      // ---------- janitorial staff (no login) ----------
+      match /staff/{staffId} {
+        function staffOk() {
+          return newData().keys().hasOnly(['name', 'employeeNo', 'phone', 'dutyArea', 'locationId',
+              'active', 'createdAt', 'createdBy', 'updatedAt'])
+            && str(newData().name, 1, 80) && newData().active is bool;
+        }
+        allow read: if isActive(orgId);
+        allow create: if isOperator(orgId) && staffOk() && newData().createdBy == uid();
+        allow update: if isOperator(orgId) && staffOk()
+          && !changed().hasAny(['createdAt', 'createdBy']);
+        allow delete: if false;
+      }
+
+      // ---------- items ----------
+      match /items/{itemId} {
+        function itemOk() {
+          return newData().keys().hasOnly(['name', 'unit', 'category', 'reorderLevel', 'currentStock',
+              'active', 'lastRef', 'createdAt', 'createdBy', 'updatedAt'])
+            && str(newData().name, 1, 80) && str(newData().unit, 1, 20)
+            && str(newData().category, 1, 40)
+            && nat(newData().reorderLevel) && nat(newData().currentStock)
+            && newData().active is bool;
+        }
+
+        // Stock may only move together with an approved/issued document.
+        function refPath(r) {
+          return /databases/$(database)/documents/orgs/$(orgId)/$(r.type + 's')/$(r.id);
+        }
+        function issueOk(r, qty) {
+          let before = get(refPath(r)).data;
+          let after = getAfter(refPath(r)).data;
+          return isSupervisor(orgId)
+            && before.status == 'approved' && after.status == 'issued'
+            && after.issuedBy == uid()
+            && qty > 0
+            && after.lines[itemId].qtyIssued == qty
+            && qty <= after.lines[itemId].qtyApproved;
+        }
+        function receiptOk(r, qty) {
+          let before = get(refPath(r)).data;
+          let after = getAfter(refPath(r)).data;
+          return isIncharge(orgId)
+            && before.status == 'pending' && after.status == 'approved'
+            && after.decidedBy == uid()
+            && qty > 0 && after.lines[itemId].qty == qty;
+        }
+        function adjustmentOk(r, delta) {
+          return isIncharge(orgId)
+            && !exists(refPath(r))
+            && getAfter(refPath(r)).data.createdBy == uid()
+            && delta != 0 && getAfter(refPath(r)).data.lines[itemId].delta == delta;
+        }
+        function stockMoveOk() {
+          let r = newData().lastRef;
+          let delta = newData().currentStock - resource.data.currentStock;
+          return changed().hasOnly(['currentStock', 'lastRef', 'updatedAt'])
+            && changed().hasAll(['currentStock', 'lastRef'])
+            && r is map && r.keys().hasOnly(['type', 'id']) && r.id is string
+            && ((r.type == 'demand' && issueOk(r, -delta))
+              || (r.type == 'receipt' && receiptOk(r, delta))
+              || (r.type == 'adjustment' && adjustmentOk(r, delta)));
+        }
+
+        allow read: if isActive(orgId);
+        allow create: if isOperator(orgId) && itemOk()
+          && newData().currentStock == 0 && !('lastRef' in newData())
+          && newData().createdBy == uid();
+        allow update: if itemOk() && (
+          (isOperator(orgId) && !changed().hasAny(['currentStock', 'lastRef', 'createdAt', 'createdBy']))
+          || stockMoveOk());
+        allow delete: if false;
+      }
+
+      // ---------- demands (from paper slips) ----------
+      match /demands/{demandId} {
+        allow read: if isActive(orgId);
+        allow create: if isOperator(orgId)
+          && newData().keys().hasOnly(['slipNo', 'staffId', 'staffName', 'locationId', 'lines', 'note',
+              'status', 'createdBy', 'createdByName', 'createdAt'])
+          && newData().status == 'pending'
+          && newData().createdBy == uid()
+          && newData().createdAt == request.time
+          && str(newData().staffId, 1, 128) && str(newData().staffName, 1, 80)
+          && validLines(newData().lines);
+        allow update: if
+          // Incharge approves (possibly reducing quantities) or rejects.
+          (isIncharge(orgId) && resource.data.status == 'pending'
+            && newData().status in ['approved', 'rejected']
+            && newData().decidedBy == uid() && newData().decidedAt == request.time
+            && changed().hasOnly(['status', 'lines', 'decidedBy', 'decidedByName', 'decidedAt', 'decisionNote'])
+            && sameLineKeys())
+          ||
+          // Supervisor issues what was approved (stock checked on each item).
+          (isSupervisor(orgId) && resource.data.status == 'approved'
+            && newData().status == 'issued'
+            && newData().issuedBy == uid() && newData().issuedAt == request.time
+            && changed().hasOnly(['status', 'lines', 'issuedBy', 'issuedByName', 'issuedAt'])
+            && sameLineKeys())
+          ||
+          // Whoever entered it may cancel while still pending.
+          (isOperator(orgId) && resource.data.status == 'pending'
+            && resource.data.createdBy == uid()
+            && newData().status == 'cancelled' && changed().hasOnly(['status']));
+        allow delete: if false;
+      }
+
+      // ---------- receipts (stock received) ----------
+      match /receipts/{receiptId} {
+        allow read: if isActive(orgId);
+        allow create: if isOperator(orgId)
+          && newData().keys().hasOnly(['source', 'reference', 'lines', 'note', 'status',
+              'createdBy', 'createdByName', 'createdAt'])
+          && newData().status == 'pending'
+          && newData().createdBy == uid()
+          && newData().createdAt == request.time
+          && str(newData().source, 1, 100)
+          && validLines(newData().lines);
+        allow update: if
+          (isIncharge(orgId) && resource.data.status == 'pending'
+            && newData().status in ['approved', 'rejected']
+            && newData().decidedBy == uid() && newData().decidedAt == request.time
+            && changed().hasOnly(['status', 'decidedBy', 'decidedByName', 'decidedAt', 'decisionNote']))
+          ||
+          (isOperator(orgId) && resource.data.status == 'pending'
+            && resource.data.createdBy == uid()
+            && newData().status == 'cancelled' && changed().hasOnly(['status']));
+        allow delete: if false;
+      }
+
+      // ---------- stock adjustments (physical count corrections) ----------
+      match /adjustments/{adjId} {
+        allow read: if isActive(orgId);
+        allow create: if isIncharge(orgId)
+          && newData().keys().hasOnly(['lines', 'reason', 'createdBy', 'createdByName', 'createdAt'])
+          && newData().createdBy == uid()
+          && newData().createdAt == request.time
+          && str(newData().reason, 3, 300)
+          && validLines(newData().lines);
+        allow update, delete: if false;
+      }
+
+      // ---------- ledger: immutable audit trail of every stock movement ----------
+      match /ledger/{entryId} {
+        function itemAfter() {
+          return getAfter(/databases/$(database)/documents/orgs/$(orgId)/items/$(newData().itemId)).data;
+        }
+        function refAfter() {
+          return getAfter(/databases/$(database)/documents/orgs/$(orgId)/$(newData().refType + 's')/$(newData().refId)).data;
+        }
+        function expectedDelta() {
+          let d = newData();
+          let line = refAfter().lines[d.itemId];
+          return d.refType == 'demand' ? -line.qtyIssued
+            : (d.refType == 'receipt' ? line.qty : line.delta);
+        }
+        allow read: if isActive(orgId);
+        allow create: if isOperator(orgId)
+          && newData().keys().hasOnly(['itemId', 'itemName', 'unit', 'delta', 'balanceAfter', 'type',
+              'refType', 'refId', 'staffId', 'staffName', 'reason', 'by', 'byName', 'at'])
+          && newData().refType in ['demand', 'receipt', 'adjustment']
+          && entryId == newData().refId + '_' + newData().itemId
+          && newData().type == {'demand': 'issue', 'receipt': 'receipt', 'adjustment': 'adjustment'}[newData().refType]
+          && newData().by == uid()
+          && newData().at == request.time
+          && itemAfter().lastRef.type == newData().refType
+          && itemAfter().lastRef.id == newData().refId
+          && itemAfter().currentStock == newData().balanceAfter
+          && newData().delta == expectedDelta();
+        allow update, delete: if false;
+      }
+
+      // ---------- V2 hook: school locations (blocks, floors, washrooms) ----------
+      match /locations/{locationId} {
+        allow read: if isActive(orgId);
+        allow write: if isAdmin(orgId) && str(newData().name, 1, 80);
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
