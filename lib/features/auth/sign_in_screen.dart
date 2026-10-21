@@ -74,8 +74,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(Icons.inventory_2_outlined,
-                        size: 64, color: theme.colorScheme.primary),
+                    const _AppMark(),
                     const SizedBox(height: 12),
                     Text('School Inventory',
                         textAlign: TextAlign.center,
@@ -140,6 +139,30 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The app icon (approved homidev cut-out) on the brand green.
+class _AppMark extends StatelessWidget {
+  const _AppMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        width: 112,
+        height: 112,
+        decoration: const BoxDecoration(
+          color: Color(0xFF2E7D32),
+          shape: BoxShape.circle,
+        ),
+        child: Image.asset(
+          'assets/icons/20261022-0239-school-inventory-app-icon-02_cutout.png',
+          semanticLabel: 'School Inventory',
+          cacheWidth: 336,
         ),
       ),
     );

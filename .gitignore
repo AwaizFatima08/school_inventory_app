@@ -50,3 +50,7 @@ firebase-debug.log
 firestore-debug.log
 tests/rules/node_modules/
 *.log
+secrets/
+
+# Release builds (share by WhatsApp/Drive, not git)
+release/*.apk

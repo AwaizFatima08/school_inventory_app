@@ -49,11 +49,17 @@ flutter run --dart-define=USE_EMULATOR=true          # Android emulator
 # Real phone: adb reverse tcp:9099 tcp:9099 && adb reverse tcp:8086 tcp:8086, then
 flutter run --dart-define=USE_EMULATOR=true --dart-define=EMULATOR_HOST=127.0.0.1
 # Build:
-flutter build apk --release        # sideload
+flutter build apk --release        # sideload; copy to release/school_inventory_vX.Y.Z.apk
 flutter build appbundle --release  # Play Store (needs a release signing key first)
 # Backup (local + Drive + git):
 scripts/backup_school_inventory.sh
 ```
+
+**Signing key:** `secrets/upload-keystore.jks` + `secrets/key.properties` (not in git; in the local + Drive
+backups). Every future update must be signed with this same key, so never lose it.
+
+**App icon:** approved homidev asset `assets/icons/…icon-02_cutout.png` on `#2E7D32` (see `assets/ASSET-REGISTER.md`);
+regenerate launcher files with `dart run flutter_launcher_icons`.
 
 `android/app/google-services.json` is **not in git** (public repo). It is in the local/Drive backups, or
 re-download it with `firebase apps:sdkconfig ANDROID --project school-inventory-homilabs --account homilabs.smc@gmail.com`.
