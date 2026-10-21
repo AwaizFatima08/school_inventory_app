@@ -88,39 +88,72 @@ class EmptyState extends StatelessWidget {
   }
 }
 
+/// Asks for a short note. The dialog owns its text controller, so it is
+/// disposed only after the closing animation (disposing it from the caller
+/// while the route was still animating crashed the app).
 Future<String?> askText(
   BuildContext context, {
   required String title,
   String label = 'Note (optional)',
   bool required = false,
-}) {
-  final controller = TextEditingController();
-  return showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
+}) =>
+    showDialog<String>(
+      context: context,
+      builder: (_) => _TextDialog(title: title, label: label, required: required),
+    );
+
+class _TextDialog extends StatefulWidget {
+  const _TextDialog({
+    required this.title,
+    required this.label,
+    required this.required,
+  });
+  final String title;
+  final String label;
+  final bool required;
+
+  @override
+  State<_TextDialog> createState() => _TextDialogState();
+}
+
+class _TextDialogState extends State<_TextDialog> {
+  final _controller = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final t = _controller.text.trim();
+    if (widget.required && t.length < 3) {
+      setState(() => _error = 'Please write at least 3 letters');
+      return;
+    }
+    Navigator.pop(context, t);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
       content: TextField(
-        controller: controller,
+        controller: _controller,
         autofocus: true,
         maxLines: 3,
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(labelText: widget.label, errorText: _error),
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(ctx),
+          onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: () {
-            final t = controller.text.trim();
-            if (required && t.length < 3) return;
-            Navigator.pop(ctx, t);
-          },
-          child: const Text('OK'),
-        ),
+        FilledButton(onPressed: _submit, child: const Text('OK')),
       ],
-    ),
-  ).whenComplete(controller.dispose);
+    );
+  }
 }
 
 Future<bool> confirm(BuildContext context, String title, String message) async {

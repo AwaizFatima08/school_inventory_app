@@ -121,7 +121,7 @@ class LedgerTile extends StatelessWidget {
     final sign = e.delta > 0 ? '+' : '';
     final who = switch (e.type) {
       MoveType.issue => 'to ${e.staffName}',
-      MoveType.receipt => 'received',
+      MoveType.receipt => '',
       MoveType.adjustment => 'count correction: ${e.reason}',
     };
     return ListTile(
@@ -131,7 +131,9 @@ class LedgerTile extends StatelessWidget {
         MoveType.receipt => Icons.move_to_inbox,
         MoveType.adjustment => Icons.rule,
       }),
-      title: Text(showItem ? '${e.itemName} · $who' : '${e.type.label} $who'),
+      title: Text(showItem
+          ? '${e.itemName} · ${who.isEmpty ? e.type.label : who}'
+          : '${e.type.label} $who'.trim()),
       subtitle: Text('${formatDateTime(e.at)} · by ${e.byName}'),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
