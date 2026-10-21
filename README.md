@@ -45,7 +45,9 @@ JAVA_HOME=$HOME/tools/jdk-21 PATH=$HOME/tools/jdk-21/bin:$PATH firebase emulator
 firebase deploy --only firestore --project school-inventory-homilabs --account homilabs.smc@gmail.com
 # Try the app against local emulators (no live data touched); accounts in tests/emulator-test-accounts.md:
 JAVA_HOME=$HOME/tools/jdk-21 PATH=$HOME/tools/jdk-21/bin:$PATH firebase emulators:start --only auth,firestore --project school-inventory-homilabs
-flutter run --dart-define=USE_EMULATOR=true
+flutter run --dart-define=USE_EMULATOR=true          # Android emulator
+# Real phone: adb reverse tcp:9099 tcp:9099 && adb reverse tcp:8086 tcp:8086, then
+flutter run --dart-define=USE_EMULATOR=true --dart-define=EMULATOR_HOST=127.0.0.1
 # Build:
 flutter build apk --release        # sideload
 flutter build appbundle --release  # Play Store (needs a release signing key first)
