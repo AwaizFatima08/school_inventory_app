@@ -133,7 +133,14 @@ else
     cd "$PROJECT_DIR" || exit 1
     git add -A >>"$LOG_FILE" 2>&1
     if git diff --cached --quiet; then
-      echo "NOCHANGES"
+      # Nothing new to commit — but still push commits made outside this script.
+      BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+      if [ -n "$(git log "${GIT_REMOTE}/${BRANCH}..HEAD" --oneline 2>/dev/null)" ]; then
+        git push "$GIT_REMOTE" "$BRANCH" >>"$LOG_FILE" 2>&1 || exit 1
+        echo "PUSHED"
+      else
+        echo "NOCHANGES"
+      fi
     else
       git commit -m "Backup: ${TIMESTAMP}" >>"$LOG_FILE" 2>&1 || exit 1
       BRANCH="$(git rev-parse --abbrev-ref HEAD)"
