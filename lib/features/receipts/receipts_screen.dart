@@ -21,21 +21,30 @@ class ReceiptsScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Stock received'),
-          bottom: const TabBar(tabs: [Tab(text: 'Pending'), Tab(text: 'All')]),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Pending'),
+              Tab(text: 'All'),
+            ],
+          ),
         ),
         floatingActionButton: me.can(Capability.recordReceipt)
             ? FloatingActionButton.extended(
                 icon: const Icon(Icons.add_shopping_cart),
                 label: const Text('Receive stock'),
                 onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const NewReceiptScreen()),
+                  MaterialPageRoute<void>(
+                    builder: (_) => const NewReceiptScreen(),
+                  ),
                 ),
               )
             : null,
-        body: const TabBarView(children: [
-          _ReceiptList(status: DocStatus.pending),
-          _ReceiptList(status: null),
-        ]),
+        body: const TabBarView(
+          children: [
+            _ReceiptList(status: DocStatus.pending),
+            _ReceiptList(status: null),
+          ],
+        ),
       ),
     );
   }
@@ -50,7 +59,10 @@ class _ReceiptList extends ConsumerWidget {
     return AsyncView(
       value: ref.watch(receiptsProvider(status)),
       builder: (list) => list.isEmpty
-          ? const EmptyState(icon: Icons.move_to_inbox_outlined, message: 'Nothing here.')
+          ? const EmptyState(
+              icon: Icons.move_to_inbox_outlined,
+              message: 'Nothing here.',
+            )
           : ListView.separated(
               padding: const EdgeInsets.only(bottom: 88),
               itemCount: list.length,
@@ -70,13 +82,17 @@ class _ReceiptTile extends StatelessWidget {
     final r = receipt;
     return ListTile(
       title: Text(r.source + (r.reference.isEmpty ? '' : ' · ${r.reference}')),
-      subtitle: Text('${formatDateTime(r.createdAt)} · ${r.createdByName}\n'
-          '${r.lines.map((l) => '${l.itemName} ${l.qty}').join(', ')}'),
+      subtitle: Text(
+        '${formatDateTime(r.createdAt)} · ${r.createdByName}\n'
+        '${r.lines.map((l) => '${l.itemName} ${l.qty}').join(', ')}',
+      ),
       isThreeLine: true,
       trailing: StatusChip(r.status),
-      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => ReceiptDetailScreen(receiptId: r.id),
-      )),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => ReceiptDetailScreen(receiptId: r.id),
+        ),
+      ),
     );
   }
 }
@@ -87,20 +103,25 @@ class ReceiptDetailScreen extends ConsumerStatefulWidget {
   final String receiptId;
 
   @override
-  ConsumerState<ReceiptDetailScreen> createState() => _ReceiptDetailScreenState();
+  ConsumerState<ReceiptDetailScreen> createState() =>
+      _ReceiptDetailScreenState();
 }
 
 class _ReceiptDetailScreenState extends ConsumerState<ReceiptDetailScreen> {
   bool _busy = false;
 
   Future<void> _decide(bool approve) async {
-    final note = await askText(context,
-        title: approve ? 'Approve receipt' : 'Reject receipt',
-        label: approve ? 'Note (optional)' : 'Reason',
-        required: !approve);
+    final note = await askText(
+      context,
+      title: approve ? 'Approve receipt' : 'Reject receipt',
+      label: approve ? 'Note (optional)' : 'Reason',
+      required: !approve,
+    );
     if (note == null || !mounted) return;
     await _run(
-      () => ref.read(inventoryRepositoryProvider).decideReceipt(
+      () => ref
+          .read(inventoryRepositoryProvider)
+          .decideReceipt(
             receiptId: widget.receiptId,
             approve: approve,
             note: note,
@@ -110,7 +131,10 @@ class _ReceiptDetailScreenState extends ConsumerState<ReceiptDetailScreen> {
     );
   }
 
-  Future<void> _run(Future<Result<void>> Function() action, String success) async {
+  Future<void> _run(
+    Future<Result<void>> Function() action,
+    String success,
+  ) async {
     setState(() => _busy = true);
     await runAction(context, action, success: success);
     if (mounted) setState(() => _busy = false);
@@ -125,60 +149,82 @@ class _ReceiptDetailScreenState extends ConsumerState<ReceiptDetailScreen> {
         value: ref.watch(receiptProvider(widget.receiptId)),
         builder: (r) {
           if (r == null) {
-            return const EmptyState(icon: Icons.search_off, message: 'Not found.');
+            return const EmptyState(
+              icon: Icons.search_off,
+              message: 'Not found.',
+            );
           }
           final pending = r.status == DocStatus.pending;
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Row(children: [
-                Expanded(child: Text(r.source, style: Theme.of(context).textTheme.titleLarge)),
-                StatusChip(r.status),
-              ]),
-              if (r.reference.isNotEmpty) Text('Bill / challan: ${r.reference}'),
-              Text('Recorded by ${r.createdByName} · ${formatDateTime(r.createdAt)}'),
-              if (r.note.isNotEmpty) Text('Note: ${r.note}'),
-              if (r.decidedByName.isNotEmpty)
-                Text('Decided by ${r.decidedByName} · ${formatDateTime(r.decidedAt)}'),
-              if (r.decisionNote.isNotEmpty) Text('Incharge note: ${r.decisionNote}'),
-              const Divider(height: 32),
-              for (final l in r.lines)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(l.itemName),
-                  trailing: Text('+${l.qty} ${l.unit}',
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+          return ReadableWidth(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        r.source,
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ),
+                    StatusChip(r.status),
+                  ],
                 ),
-              const SizedBox(height: 24),
-              if (pending && me.can(Capability.approveReceipt))
-                Row(children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _busy ? null : () => _decide(false),
-                      child: const Text('Reject'),
+                if (r.reference.isNotEmpty)
+                  Text('Bill / challan: ${r.reference}'),
+                Text(
+                  'Recorded by ${r.createdByName} · ${formatDateTime(r.createdAt)}',
+                ),
+                if (r.note.isNotEmpty) Text('Note: ${r.note}'),
+                if (r.decidedByName.isNotEmpty)
+                  Text(
+                    'Decided by ${r.decidedByName} · ${formatDateTime(r.decidedAt)}',
+                  ),
+                if (r.decisionNote.isNotEmpty)
+                  Text('Incharge note: ${r.decisionNote}'),
+                const Divider(height: 32),
+                for (final l in r.lines)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l.itemName),
+                    trailing: Text(
+                      '+${l.qty} ${l.unit}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _busy ? null : () => _decide(true),
-                      child: const Text('Approve & add stock'),
-                    ),
+                const SizedBox(height: 24),
+                if (pending && me.can(Capability.approveReceipt))
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _busy ? null : () => _decide(false),
+                          child: const Text('Reject'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _busy ? null : () => _decide(true),
+                          child: const Text('Approve & add stock'),
+                        ),
+                      ),
+                    ],
                   ),
-                ]),
-              if (pending && r.createdBy == me.uid)
-                TextButton(
-                  onPressed: _busy
-                      ? null
-                      : () => _run(
+                if (pending && r.createdBy == me.uid)
+                  TextButton(
+                    onPressed: _busy
+                        ? null
+                        : () => _run(
                             () => ref
                                 .read(inventoryRepositoryProvider)
                                 .cancelReceipt(r.id),
                             'Receipt cancelled.',
                           ),
-                  child: const Text('Cancel this receipt'),
-                ),
-            ],
+                    child: const Text('Cancel this receipt'),
+                  ),
+              ],
+            ),
           );
         },
       ),

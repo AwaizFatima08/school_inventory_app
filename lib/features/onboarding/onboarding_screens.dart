@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/providers.dart';
 import '../../domain/roles.dart';
 import '../common/ui_helpers.dart';
+import '../settings/delete_account.dart';
 
 /// After sign-in, before belonging to a school: create one or join one.
 class CreateOrJoinScreen extends ConsumerStatefulWidget {
@@ -32,10 +33,9 @@ class _CreateOrJoinScreenState extends ConsumerState<CreateOrJoinScreen> {
     setState(() => _busy = true);
     await runAction(
       context,
-      () => ref.read(accountRepositoryProvider).createSchool(
-            schoolName: _schoolName.text,
-            seedDefaultItems: _seed,
-          ),
+      () => ref
+          .read(accountRepositoryProvider)
+          .createSchool(schoolName: _schoolName.text, seedDefaultItems: _seed),
     );
     if (mounted) setState(() => _busy = false);
   }
@@ -66,61 +66,71 @@ class _CreateOrJoinScreenState extends ConsumerState<CreateOrJoinScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text('Join your school', style: t.titleLarge),
-          const SizedBox(height: 4),
-          const Text('Ask your admin for the 6-letter school code. '
-              'The admin approves your request.'),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _code,
-            textCapitalization: TextCapitalization.characters,
-            maxLength: 6,
-            decoration: const InputDecoration(labelText: 'School code'),
-          ),
-          DropdownButtonFormField<Role>(
-            initialValue: _role,
-            decoration: const InputDecoration(labelText: 'I am the'),
-            items: [
-              for (final r in Role.values)
-                DropdownMenuItem(value: r, child: Text(r.label)),
-            ],
-            onChanged: (r) => setState(() => _role = r ?? Role.supervisor),
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _busy ? null : _join,
-            child: const Text('Request to join'),
-          ),
-          const Divider(height: 48),
-          Text('Or set up a new school', style: t.titleLarge),
-          const SizedBox(height: 4),
-          const Text('You become the Janitorial Incharge and the admin who '
-              'approves new users.'),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _schoolName,
-            textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(
-              labelText: 'School name',
-              hintText: 'e.g. Fatima Fertilizer School',
+      body: ReadableWidth(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text('Join your school', style: t.titleLarge),
+            const SizedBox(height: 4),
+            const Text(
+              'Ask your admin for the 6-letter school code. '
+              'The admin approves your request.',
             ),
-          ),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _seed,
-            onChanged: (v) => setState(() => _seed = v ?? true),
-            title: const Text('Add the standard janitorial item list'),
-            subtitle: const Text('Soap, mops, Harpic, bleach, brushes… '
-                'You can edit or add items later.'),
-          ),
-          OutlinedButton(
-            onPressed: _busy ? null : _create,
-            child: const Text('Create school'),
-          ),
-        ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _code,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 6,
+              decoration: const InputDecoration(labelText: 'School code'),
+            ),
+            DropdownButtonFormField<Role>(
+              initialValue: _role,
+              decoration: const InputDecoration(labelText: 'I am the'),
+              items: [
+                for (final r in Role.values)
+                  DropdownMenuItem(value: r, child: Text(r.label)),
+              ],
+              onChanged: (r) => setState(() => _role = r ?? Role.supervisor),
+            ),
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: _busy ? null : _join,
+              child: const Text('Request to join'),
+            ),
+            const Divider(height: 48),
+            Text('Or set up a new school', style: t.titleLarge),
+            const SizedBox(height: 4),
+            const Text(
+              'You become the Janitorial Incharge and the admin who '
+              'approves new users.',
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _schoolName,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'School name',
+                hintText: 'e.g. Fatima Fertilizer School',
+              ),
+            ),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _seed,
+              onChanged: (v) => setState(() => _seed = v ?? true),
+              title: const Text('Add the standard janitorial item list'),
+              subtitle: const Text(
+                'Soap, mops, Harpic, bleach, brushes… '
+                'You can edit or add items later.',
+              ),
+            ),
+            OutlinedButton(
+              onPressed: _busy ? null : _create,
+              child: const Text('Create school'),
+            ),
+            const Divider(height: 48),
+            const DeleteAccountTile(),
+          ],
+        ),
       ),
     );
   }
@@ -142,7 +152,8 @@ class AwaitingApprovalScreen extends ConsumerWidget {
     return _InfoScreen(
       icon: Icons.hourglass_top,
       title: 'Waiting for approval',
-      message: 'Your request to join as '
+      message:
+          'Your request to join as '
           '${requestedRole?.label ?? 'a member'} was sent. '
           'The school admin will approve it. This screen updates by itself.',
       actions: [
@@ -154,6 +165,7 @@ class AwaitingApprovalScreen extends ConsumerWidget {
           child: const Text('Withdraw request'),
         ),
         TextButton(onPressed: repo.signOut, child: const Text('Sign out')),
+        const DeleteAccountButton(),
       ],
     );
   }
@@ -170,7 +182,8 @@ class AccessDisabledScreen extends ConsumerWidget {
     return _InfoScreen(
       icon: Icons.block,
       title: 'Access turned off',
-      message: 'The school admin has turned off your access. '
+      message:
+          'The school admin has turned off your access. '
           'Contact them if this is a mistake.',
       actions: [
         OutlinedButton(
@@ -181,6 +194,7 @@ class AccessDisabledScreen extends ConsumerWidget {
           child: const Text('Join a different school'),
         ),
         TextButton(onPressed: repo.signOut, child: const Text('Sign out')),
+        const DeleteAccountButton(),
       ],
     );
   }
@@ -208,7 +222,11 @@ class _InfoScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 64, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  icon,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(height: 16),
                 Text(title, style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 8),

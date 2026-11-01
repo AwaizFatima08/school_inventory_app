@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/result.dart';
 import '../../domain/models.dart';
@@ -59,6 +60,23 @@ class StatusChip extends StatelessWidget {
       child: Text(
         status.label,
         style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
+      ),
+    );
+  }
+}
+
+/// Limits forms and detail pages to a comfortable reading width on desktop.
+class ReadableWidth extends StatelessWidget {
+  const ReadableWidth({required this.child, super.key});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 720),
+        child: child,
       ),
     );
   }
@@ -153,6 +171,15 @@ class _TextDialogState extends State<_TextDialog> {
         FilledButton(onPressed: _submit, child: const Text('OK')),
       ],
     );
+  }
+}
+
+/// Opens [url] in the browser; tells the user if that fails.
+Future<void> openLink(BuildContext context, String url) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final ok = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  if (!ok) {
+    messenger.showSnackBar(SnackBar(content: Text('Could not open $url')));
   }
 }
 

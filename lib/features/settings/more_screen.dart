@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/links.dart';
 import '../../domain/roles.dart';
+import '../common/ui_helpers.dart';
 import '../members/members_screen.dart';
 import '../receipts/receipts_screen.dart';
 import '../reports/reports_screen.dart';
 import '../staff/staff_screen.dart';
+import 'delete_account.dart';
 
 /// Secondary destinations and account actions.
 class MoreScreen extends ConsumerWidget {
@@ -60,6 +63,17 @@ class MoreScreen extends ConsumerWidget {
             title: const Text('Sign out'),
             onTap: () => ref.read(accountRepositoryProvider).signOut(),
           ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Privacy policy'),
+            onTap: () => openLink(context, Links.privacy),
+          ),
+          ListTile(
+            leading: const Icon(Icons.description_outlined),
+            title: const Text('Terms of use'),
+            onTap: () => openLink(context, Links.terms),
+          ),
+          const DeleteAccountTile(),
           const AboutListTile(
             icon: Icon(Icons.info_outline),
             applicationName: 'School Inventory',

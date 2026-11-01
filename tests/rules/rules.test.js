@@ -113,6 +113,11 @@ test('admin cannot lock themself out', async () => {
   await assertSucceeds(updateDoc(doc(db('admin'), o('members/admin')), { role: 'supervisor' }));
 });
 
+test('a member may delete their own membership, not someone else\'s', async () => {
+  await assertFails(deleteDoc(doc(db('sup'), o('members/admin'))));
+  await assertSucceeds(deleteDoc(doc(db('sup'), o('members/sup'))));
+});
+
 // ---------------- items ----------------
 test('supervisor adds an item only with zero stock', async () => {
   const base = { name: 'Phenyl', unit: 'bottle', category: 'janitorial', reorderLevel: 3, active: true, createdBy: 'sup', createdAt: serverTimestamp() };

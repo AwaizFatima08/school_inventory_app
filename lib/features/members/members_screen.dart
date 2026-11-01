@@ -21,25 +21,31 @@ class MembersScreen extends ConsumerWidget {
       body: AsyncView(
         value: ref.watch(membersProvider),
         builder: (members) {
-          final pending = members.where((m) => m.status == MemberStatus.pending);
+          final pending = members.where(
+            (m) => m.status == MemberStatus.pending,
+          );
           final others = members.where((m) => m.status != MemberStatus.pending);
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _JoinCodeCard(code: org.joinCode),
-              const SizedBox(height: 16),
-              Text('Requests (${pending.length})',
-                  style: Theme.of(context).textTheme.titleMedium),
-              if (pending.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8),
-                  child: Text('No one is waiting.'),
+          return ReadableWidth(
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _JoinCodeCard(code: org.joinCode),
+                const SizedBox(height: 16),
+                Text(
+                  'Requests (${pending.length})',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-              for (final m in pending) _MemberTile(member: m),
-              const SizedBox(height: 16),
-              Text('Members', style: Theme.of(context).textTheme.titleMedium),
-              for (final m in others) _MemberTile(member: m),
-            ],
+                if (pending.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Text('No one is waiting.'),
+                  ),
+                for (final m in pending) _MemberTile(member: m),
+                const SizedBox(height: 16),
+                Text('Members', style: Theme.of(context).textTheme.titleMedium),
+                for (final m in others) _MemberTile(member: m),
+              ],
+            ),
           );
         },
       ),
@@ -56,16 +62,22 @@ class _JoinCodeCard extends StatelessWidget {
     return Card(
       child: ListTile(
         title: const Text('School code'),
-        subtitle: const Text('New supervisors / incharges sign up in the app, '
-            'tap "Join your school" and type this code. You then approve them here.'),
+        subtitle: const Text(
+          'New supervisors / incharges sign up in the app, '
+          'tap "Join your school" and type this code. You then approve them here.',
+        ),
         trailing: TextButton.icon(
           icon: const Icon(Icons.copy),
-          label: Text(code, style: const TextStyle(fontSize: 18, letterSpacing: 2)),
+          label: Text(
+            code,
+            style: const TextStyle(fontSize: 18, letterSpacing: 2),
+          ),
           onPressed: () async {
             await Clipboard.setData(ClipboardData(text: code));
             if (context.mounted) {
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(const SnackBar(content: Text('Code copied.')));
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Code copied.')));
             }
           },
         ),
@@ -83,9 +95,11 @@ class _MemberTile extends ConsumerWidget {
     final m = member;
     final me = ref.watch(currentMemberProvider);
     final subtitle = switch (m.status) {
-      MemberStatus.pending => 'Asks to be: ${m.requestedRole?.label ?? '—'}\n${m.email}',
+      MemberStatus.pending =>
+        'Asks to be: ${m.requestedRole?.label ?? '—'}\n${m.email}',
       MemberStatus.disabled => 'Access off · ${m.email}',
-      MemberStatus.active => '${m.role.label}${m.isAdmin ? ' · Admin' : ''}\n${m.email}',
+      MemberStatus.active =>
+        '${m.role.label}${m.isAdmin ? ' · Admin' : ''}\n${m.email}',
     };
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -126,7 +140,9 @@ class _EditMemberDialogState extends ConsumerState<_EditMemberDialog> {
     final org = ref.read(currentOrgProvider);
     final ok = await runAction(
       context,
-      () => ref.read(accountRepositoryProvider).updateMember(
+      () => ref
+          .read(accountRepositoryProvider)
+          .updateMember(
             orgId: org.id,
             memberUid: widget.member.uid,
             role: _role,
@@ -144,7 +160,9 @@ class _EditMemberDialogState extends ConsumerState<_EditMemberDialog> {
     final org = ref.read(currentOrgProvider);
     final ok = await runAction(
       context,
-      () => ref.read(accountRepositoryProvider).removeMember(org.id, widget.member.uid),
+      () => ref
+          .read(accountRepositoryProvider)
+          .removeMember(org.id, widget.member.uid),
       success: _pending ? 'Request declined.' : 'Removed.',
     );
     if (ok && mounted) Navigator.of(context).pop();
@@ -153,7 +171,11 @@ class _EditMemberDialogState extends ConsumerState<_EditMemberDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text(_pending ? 'Approve ${widget.member.displayName}?' : widget.member.displayName),
+      title: Text(
+        _pending
+            ? 'Approve ${widget.member.displayName}?'
+            : widget.member.displayName,
+      ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -161,7 +183,8 @@ class _EditMemberDialogState extends ConsumerState<_EditMemberDialog> {
             initialValue: _role,
             decoration: const InputDecoration(labelText: 'Role'),
             items: [
-              for (final r in Role.values) DropdownMenuItem(value: r, child: Text(r.label)),
+              for (final r in Role.values)
+                DropdownMenuItem(value: r, child: Text(r.label)),
             ],
             onChanged: (r) => setState(() => _role = r ?? _role),
           ),
@@ -177,7 +200,9 @@ class _EditMemberDialogState extends ConsumerState<_EditMemberDialog> {
               contentPadding: EdgeInsets.zero,
               title: const Text('Access on'),
               value: _active,
-              onChanged: widget.isSelf ? null : (v) => setState(() => _active = v),
+              onChanged: widget.isSelf
+                  ? null
+                  : (v) => setState(() => _active = v),
             ),
         ],
       ),
@@ -187,7 +212,10 @@ class _EditMemberDialogState extends ConsumerState<_EditMemberDialog> {
             onPressed: _busy ? null : _remove,
             child: Text(_pending ? 'Decline' : 'Remove'),
           ),
-        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
         FilledButton(
           onPressed: _busy ? null : _save,
           child: Text(_pending ? 'Approve' : 'Save'),

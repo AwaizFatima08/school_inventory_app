@@ -34,20 +34,31 @@ class _NewReceiptScreenState extends ConsumerState<NewReceiptScreen> {
 
   Future<void> _save(List<Item> items) async {
     if (_source.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Enter where the stock came from (or "Opening stock").'),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Enter where the stock came from (or "Opening stock").',
+          ),
+        ),
+      );
       return;
     }
     final lines = [
       for (final i in items)
         if ((_qty[i.id] ?? 0) > 0)
-          ReceiptLine(itemId: i.id, itemName: i.name, unit: i.unit, qty: _qty[i.id]!),
+          ReceiptLine(
+            itemId: i.id,
+            itemName: i.name,
+            unit: i.unit,
+            qty: _qty[i.id]!,
+          ),
     ];
     setState(() => _busy = true);
     final ok = await runAction(
       context,
-      () => ref.read(inventoryRepositoryProvider).createReceipt(
+      () => ref
+          .read(inventoryRepositoryProvider)
+          .createReceipt(
             source: _source.text,
             reference: _reference.text,
             note: _note.text,
@@ -71,43 +82,61 @@ class _NewReceiptScreenState extends ConsumerState<NewReceiptScreen> {
         value: itemsValue,
         builder: (all) {
           final items = all.where((i) => i.active).toList();
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-            children: [
-              TextField(
-                controller: _source,
-                textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: 'Received from',
-                  hintText: 'Supplier / store / "Opening stock"',
-                ),
-              ),
-              Wrap(spacing: 6, children: [
-                for (final s in const ['Opening stock', 'Main store', 'Local purchase'])
-                  ActionChip(label: Text(s), onPressed: () => _source.text = s),
-              ]),
-              TextField(
-                controller: _reference,
-                decoration: const InputDecoration(labelText: 'Bill / challan no. (optional)'),
-              ),
-              TextField(
-                controller: _note,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
-              ),
-              const SizedBox(height: 16),
-              Text('Quantities received ($picked / ${InventoryRepository.maxLinesPerDocument} max)',
-                  style: Theme.of(context).textTheme.titleMedium),
-              for (final item in items)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(item.name),
-                  subtitle: Text('Now: ${item.currentStock} ${item.unit}'),
-                  trailing: QtyField(
-                    value: _qty[item.id] ?? 0,
-                    onChanged: (v) => setState(() => _qty[item.id] = v),
+          return ReadableWidth(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+              children: [
+                TextField(
+                  controller: _source,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Received from',
+                    hintText: 'Supplier / store / "Opening stock"',
                   ),
                 ),
-            ],
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    for (final s in const [
+                      'Opening stock',
+                      'Main store',
+                      'Local purchase',
+                    ])
+                      ActionChip(
+                        label: Text(s),
+                        onPressed: () => _source.text = s,
+                      ),
+                  ],
+                ),
+                TextField(
+                  controller: _reference,
+                  decoration: const InputDecoration(
+                    labelText: 'Bill / challan no. (optional)',
+                  ),
+                ),
+                TextField(
+                  controller: _note,
+                  decoration: const InputDecoration(
+                    labelText: 'Note (optional)',
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Quantities received ($picked / ${InventoryRepository.maxLinesPerDocument} max)',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                for (final item in items)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(item.name),
+                    subtitle: Text('Now: ${item.currentStock} ${item.unit}'),
+                    trailing: QtyField(
+                      value: _qty[item.id] ?? 0,
+                      onChanged: (v) => setState(() => _qty[item.id] = v),
+                    ),
+                  ),
+              ],
+            ),
           );
         },
       ),

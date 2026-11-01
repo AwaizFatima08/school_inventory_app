@@ -1,0 +1,12 @@
+# Flutter web app: needs WebAssembly, Firebase's SDK from gstatic and Google APIs.
+# The sha256 hashes are the small inline loader scripts of firebase_core, _auth and _firestore.
+# After upgrading those packages, check the live console: a CSP error names any new hash.
+<IfModule mod_headers.c>
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-8c/WNoEw1nr7G8Z0vl3LfbVXE+6ihJRtsJUSyJDxXI8=' 'sha256-lJcqGcCxoIs6DqAsIE8JpqcKDc9oLEnqOSiNX8HjOKM=' 'sha256-Kh2qdmvoHlNBOElf/ojSfFBI+ftIANOTh3Nj2n54Co8=' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://*.googleapis.com https://www.gstatic.com https://fonts.gstatic.com; frame-src https://school-inventory-homilabs.firebaseapp.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+  <FilesMatch "\.(html|js|json|wasm)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+<IfModule mod_mime.c>
+  AddType application/wasm .wasm
+</IfModule>

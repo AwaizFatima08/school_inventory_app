@@ -54,3 +54,8 @@ secrets/
 
 # Release builds (share by WhatsApp/Drive, not git)
 release/*.apk
+
+# Generated website
+site/dist/
+site/*.zip
+site/__pycache__/

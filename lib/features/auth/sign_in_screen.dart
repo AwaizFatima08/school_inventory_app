@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/providers.dart';
+import '../../core/links.dart';
 import '../common/ui_helpers.dart';
 
 /// Email + password sign-in and registration for incharge / supervisor.
@@ -125,6 +126,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         onPressed: _busy ? null : _forgot,
                         child: const Text('Forgot password?'),
                       ),
+                    if (_register)
+                      TextButton(
+                        onPressed: () => openLink(context, Links.privacy),
+                        child: const Text(
+                          'By creating an account you accept the Terms and '
+                          'Privacy Policy',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: _busy
@@ -162,7 +172,6 @@ class _AppMark extends StatelessWidget {
         child: Image.asset(
           'assets/icons/20261022-0239-school-inventory-app-icon-02_cutout.png',
           semanticLabel: 'School Inventory',
-          cacheWidth: 336,
         ),
       ),
     );

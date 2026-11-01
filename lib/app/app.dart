@@ -17,6 +17,7 @@ class SchoolInventoryApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: _theme(Brightness.light),
       darkTheme: _theme(Brightness.dark),
+      builder: (context, child) => _WidthLimit(child: child!),
       home: const _SessionGate(),
     );
   }
@@ -30,6 +31,27 @@ class SchoolInventoryApp extends StatelessWidget {
           border: UnderlineInputBorder(),
         ),
       );
+}
+
+/// Keeps forms and lists readable on large desktop monitors.
+class _WidthLimit extends StatelessWidget {
+  const _WidthLimit({required this.child});
+  final Widget child;
+
+  static const _maxWidth = 1240.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surfaceContainerLow,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _maxWidth),
+          child: child,
+        ),
+      ),
+    );
+  }
 }
 
 /// Shows the right top-level screen for where the user is in onboarding.

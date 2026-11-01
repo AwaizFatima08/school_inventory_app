@@ -119,9 +119,10 @@ service cloud.firestore {
           (signedIn() && memberId == uid() && changed().hasOnly(['displayName'])
             && str(newData().displayName, 1, 80));
 
-        // Admin removes a request / member; a pending user may withdraw.
+        // Admin removes a request / member; anyone may leave (withdraw a
+        // request or delete their account).
         allow delete: if (isAdmin(orgId) && memberId != uid())
-          || (signedIn() && memberId == uid() && resource.data.status == 'pending');
+          || (signedIn() && memberId == uid());
       }
 
       // ---------- janitorial staff (no login) ----------

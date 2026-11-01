@@ -26,7 +26,10 @@ class DemandDetailScreen extends ConsumerWidget {
       body: AsyncView(
         value: ref.watch(demandProvider(demandId)),
         builder: (d) => d == null
-            ? const EmptyState(icon: Icons.search_off, message: 'Demand not found.')
+            ? const EmptyState(
+                icon: Icons.search_off,
+                message: 'Demand not found.',
+              )
             : _DemandBody(demand: d),
       ),
     );
@@ -49,8 +52,12 @@ class _DemandBodyState extends ConsumerState<_DemandBody> {
   _Mode get _mode {
     final me = ref.read(currentMemberProvider);
     final s = widget.demand.status;
-    if (s == DocStatus.pending && me.can(Capability.approveDemand)) return _Mode.approve;
-    if (s == DocStatus.approved && me.can(Capability.issueDemand)) return _Mode.issue;
+    if (s == DocStatus.pending && me.can(Capability.approveDemand)) {
+      return _Mode.approve;
+    }
+    if (s == DocStatus.approved && me.can(Capability.issueDemand)) {
+      return _Mode.issue;
+    }
     return _Mode.view;
   }
 
@@ -64,7 +71,9 @@ class _DemandBodyState extends ConsumerState<_DemandBody> {
       _qty[l.itemId] = switch (_mode) {
         _Mode.approve => l.qtyRequested,
         _Mode.issue => StockLogic.maxIssuable(
-            approved: l.qtyApproved, inStock: stock[l.itemId] ?? 0),
+          approved: l.qtyApproved,
+          inStock: stock[l.itemId] ?? 0,
+        ),
         _Mode.view => 0,
       };
     }
@@ -79,7 +88,9 @@ class _DemandBodyState extends ConsumerState<_DemandBody> {
     );
     if (note == null || !mounted) return;
     await _run(
-      () => ref.read(inventoryRepositoryProvider).decideDemand(
+      () => ref
+          .read(inventoryRepositoryProvider)
+          .decideDemand(
             demand: widget.demand,
             approve: approve,
             approvedQty: _qty,
@@ -91,11 +102,16 @@ class _DemandBodyState extends ConsumerState<_DemandBody> {
   }
 
   Future<void> _issue() async {
-    final ok = await confirm(context, 'Issue items?',
-        'Hand over the items now. Stock will be reduced.');
+    final ok = await confirm(
+      context,
+      'Issue items?',
+      'Hand over the items now. Stock will be reduced.',
+    );
     if (!ok || !mounted) return;
     await _run(
-      () => ref.read(inventoryRepositoryProvider).issueDemand(
+      () => ref
+          .read(inventoryRepositoryProvider)
+          .issueDemand(
             demandId: widget.demand.id,
             issueQty: _qty,
             by: ref.read(actorProvider),
@@ -105,15 +121,23 @@ class _DemandBodyState extends ConsumerState<_DemandBody> {
   }
 
   Future<void> _cancel() async {
-    final ok = await confirm(context, 'Cancel demand?', 'This cannot be undone.');
+    final ok = await confirm(
+      context,
+      'Cancel demand?',
+      'This cannot be undone.',
+    );
     if (!ok || !mounted) return;
     await _run(
-      () => ref.read(inventoryRepositoryProvider).cancelDemand(widget.demand.id),
+      () =>
+          ref.read(inventoryRepositoryProvider).cancelDemand(widget.demand.id),
       'Demand cancelled.',
     );
   }
 
-  Future<void> _run(Future<Result<void>> Function() action, String success) async {
+  Future<void> _run(
+    Future<Result<void>> Function() action,
+    String success,
+  ) async {
     setState(() => _busy = true);
     await runAction(context, action, success: success);
     if (mounted) setState(() => _busy = false);
@@ -127,53 +151,59 @@ class _DemandBodyState extends ConsumerState<_DemandBody> {
     final stock = {for (final i in items) i.id: i.currentStock};
     _seed(stock);
     final mode = _mode;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        _Header(demand: d),
-        const Divider(height: 32),
-        Text(switch (mode) {
-          _Mode.approve => 'Set approved quantity',
-          _Mode.issue => 'Quantity to hand over',
-          _Mode.view => 'Items',
-        }, style: Theme.of(context).textTheme.titleMedium),
-        for (final l in d.lines)
-          _LineTile(
-            line: l,
-            mode: mode,
-            inStock: stock[l.itemId] ?? 0,
-            qty: _qty[l.itemId] ?? 0,
-            onChanged: (v) => setState(() => _qty[l.itemId] = v),
-          ),
-        const SizedBox(height: 24),
-        if (mode == _Mode.approve)
-          Row(children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: _busy ? null : () => _decide(approve: false),
-                child: const Text('Reject'),
-              ),
+    return ReadableWidth(
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _Header(demand: d),
+          const Divider(height: 32),
+          Text(switch (mode) {
+            _Mode.approve => 'Set approved quantity',
+            _Mode.issue => 'Quantity to hand over',
+            _Mode.view => 'Items',
+          }, style: Theme.of(context).textTheme.titleMedium),
+          for (final l in d.lines)
+            _LineTile(
+              line: l,
+              mode: mode,
+              inStock: stock[l.itemId] ?? 0,
+              qty: _qty[l.itemId] ?? 0,
+              onChanged: (v) => setState(() => _qty[l.itemId] = v),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton(
-                onPressed: _busy ? null : () => _decide(approve: true),
-                child: const Text('Approve'),
-              ),
+          const SizedBox(height: 24),
+          if (mode == _Mode.approve)
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: _busy ? null : () => _decide(approve: false),
+                    child: const Text('Reject'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: _busy ? null : () => _decide(approve: true),
+                    child: const Text('Approve'),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        if (mode == _Mode.issue)
-          FilledButton.icon(
-            icon: const Icon(Icons.outbox),
-            label: const Text('Issue items'),
-            onPressed: _busy || _qty.values.every((q) => q == 0) ? null : _issue,
-          ),
-        if (d.status == DocStatus.pending && d.createdBy == me.uid)
-          TextButton(
-            onPressed: _busy ? null : _cancel,
-            child: const Text('Cancel this demand'),
-          ),
-      ],
+          if (mode == _Mode.issue)
+            FilledButton.icon(
+              icon: const Icon(Icons.outbox),
+              label: const Text('Issue items'),
+              onPressed: _busy || _qty.values.every((q) => q == 0)
+                  ? null
+                  : _issue,
+            ),
+          if (d.status == DocStatus.pending && d.createdBy == me.uid)
+            TextButton(
+              onPressed: _busy ? null : _cancel,
+              child: const Text('Cancel this demand'),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -189,16 +219,20 @@ class _Header extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(children: [
-          Expanded(child: Text(d.staffName, style: t.titleLarge)),
-          StatusChip(d.status),
-        ]),
+        Row(
+          children: [
+            Expanded(child: Text(d.staffName, style: t.titleLarge)),
+            StatusChip(d.status),
+          ],
+        ),
         if (d.slipNo.isNotEmpty) Text('Slip no. ${d.slipNo}'),
         Text('Entered by ${d.createdByName} · ${formatDateTime(d.createdAt)}'),
         if (d.note.isNotEmpty) Text('Note: ${d.note}'),
         if (d.decidedByName.isNotEmpty)
-          Text('${d.status == DocStatus.rejected ? 'Rejected' : 'Approved'} by '
-              '${d.decidedByName} · ${formatDateTime(d.decidedAt)}'),
+          Text(
+            '${d.status == DocStatus.rejected ? 'Rejected' : 'Approved'} by '
+            '${d.decidedByName} · ${formatDateTime(d.decidedAt)}',
+          ),
         if (d.decisionNote.isNotEmpty) Text('Incharge note: ${d.decisionNote}'),
         if (d.issuedByName.isNotEmpty)
           Text('Issued by ${d.issuedByName} · ${formatDateTime(d.issuedAt)}'),
@@ -226,7 +260,8 @@ class _LineTile extends StatelessWidget {
     final u = line.unit;
     final facts = [
       'Asked ${line.qtyRequested} $u',
-      if (mode != _Mode.approve && line.qtyApproved > 0) 'approved ${line.qtyApproved}',
+      if (mode != _Mode.approve && line.qtyApproved > 0)
+        'approved ${line.qtyApproved}',
       if (line.qtyIssued > 0) 'issued ${line.qtyIssued}',
       if (mode != _Mode.view) 'in stock $inStock',
     ];
@@ -235,12 +270,19 @@ class _LineTile extends StatelessWidget {
       title: Text(line.itemName),
       subtitle: Text(facts.join(' · ')),
       trailing: switch (mode) {
-        _Mode.approve => QtyField(value: qty, max: line.qtyRequested, onChanged: onChanged),
+        _Mode.approve => QtyField(
+          value: qty,
+          max: line.qtyRequested,
+          onChanged: onChanged,
+        ),
         _Mode.issue => QtyField(
-            value: qty,
-            max: StockLogic.maxIssuable(approved: line.qtyApproved, inStock: inStock),
-            onChanged: onChanged,
+          value: qty,
+          max: StockLogic.maxIssuable(
+            approved: line.qtyApproved,
+            inStock: inStock,
           ),
+          onChanged: onChanged,
+        ),
         _Mode.view => null,
       },
     );

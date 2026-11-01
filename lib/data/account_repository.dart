@@ -169,6 +169,43 @@ class AccountRepository {
         );
       });
 
+  /// Permanently deletes the signed-in account: school membership, profile
+  /// and login. Records the person already signed (demands, ledger) stay
+  /// with the school as its audit trail. The password is re-checked because
+  /// Firebase requires a recent sign-in for this.
+  Future<Result<void>> deleteAccount(String password) =>
+      _authGuard(() async {
+        final user = _requireUser();
+        await user.reauthenticateWithCredential(
+          EmailAuthProvider.credential(
+            email: user.email ?? '',
+            password: password,
+          ),
+        );
+        final profile = await _userDoc(user.uid).get();
+        final orgId = profile.data()?['orgId'] as String?;
+        if (orgId != null) await _leaveForDeletion(orgId, user.uid);
+        await _userDoc(user.uid).delete();
+        await user.delete();
+      });
+
+  Future<void> _leaveForDeletion(String orgId, String uid) async {
+    final mine = await _members(orgId).doc(uid).get();
+    if (!mine.exists) return;
+    final me = memberFrom(mine);
+    if (me.isAdmin && me.status == MemberStatus.active) {
+      final all = (await _members(orgId).get()).docs.map(memberFrom).toList();
+      final others =
+          all.where((m) => m.uid != uid && m.status == MemberStatus.active);
+      if (others.isNotEmpty && !others.any((m) => m.isAdmin)) {
+        throw const AppFailure(FailureCode.invalidState,
+            'You are the only admin. Make another member an admin first '
+            '(More > Users & roles), then delete your account.');
+      }
+    }
+    await _members(orgId).doc(uid).delete();
+  }
+
   /// Admin: approve / change role / grant admin / disable.
   Future<Result<void>> updateMember({
     required String orgId,
@@ -220,6 +257,7 @@ class AccountRepository {
     } on FirebaseAuthException catch (e) {
       return Err(AppFailure(FailureCode.auth, _authMessage(e.code)));
     } on Object catch (e) {
+      // failureFrom keeps AppFailure messages as they are.
       return Err(failureFrom(e));
     }
   }

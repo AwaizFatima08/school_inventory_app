@@ -30,14 +30,20 @@ class DemandsScreen extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Demands'),
-          bottom: TabBar(tabs: [for (final t in _tabs) Tab(text: t.$1)]),
+          bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [for (final t in _tabs) Tab(text: t.$1)],
+          ),
         ),
         floatingActionButton: me.can(Capability.recordDemand)
             ? FloatingActionButton.extended(
                 icon: const Icon(Icons.note_add_outlined),
                 label: const Text('Enter slip'),
                 onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute<void>(builder: (_) => const NewDemandScreen()),
+                  MaterialPageRoute<void>(
+                    builder: (_) => const NewDemandScreen(),
+                  ),
                 ),
               )
             : null,
@@ -58,7 +64,10 @@ class _DemandList extends ConsumerWidget {
     return AsyncView(
       value: ref.watch(demandsProvider(status)),
       builder: (demands) => demands.isEmpty
-          ? const EmptyState(icon: Icons.assignment_outlined, message: 'No demands here.')
+          ? const EmptyState(
+              icon: Icons.assignment_outlined,
+              message: 'No demands here.',
+            )
           : ListView.separated(
               padding: const EdgeInsets.only(bottom: 88),
               itemCount: demands.length,

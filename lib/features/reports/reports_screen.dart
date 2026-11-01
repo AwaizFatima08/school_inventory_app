@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -8,6 +9,7 @@ import '../../core/clock.dart';
 import '../../core/result.dart';
 import '../../domain/models.dart';
 import '../../domain/stock_logic.dart';
+import '../common/file_download.dart';
 import '../common/ui_helpers.dart';
 
 /// Monthly consumption: issued per item and per staff member, plus a
@@ -50,9 +52,14 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     String q(String s) => '"${s.replaceAll('"', '""')}"';
     for (final e in entries) {
       csv.writeln([
-        formatDateTime(e.at), e.type.label, q(e.itemName), e.unit, e.delta,
+        q(formatDateTime(e.at)), e.type.label, q(e.itemName), e.unit, e.delta,
         e.balanceAfter, q(e.staffName), q(e.byName), q(e.reason),
       ].join(','));
+    }
+    if (kIsWeb) {
+      final month = DateFormat('yyyy-MM').format(_month);
+      downloadTextFile('stock-movements-$month.csv', csv.toString());
+      return;
     }
     await SharePlus.instance.share(ShareParams(
       subject: '${org.name} — stock movements ${DateFormat('MMMM yyyy').format(_month)}',
@@ -69,8 +76,8 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
         actions: [
           if (r case Ok(:final value) when value.isNotEmpty)
             IconButton(
-              tooltip: 'Share as CSV',
-              icon: const Icon(Icons.share),
+              tooltip: kIsWeb ? 'Download CSV' : 'Share as CSV',
+              icon: const Icon(kIsWeb ? Icons.download : Icons.share),
               onPressed: () => _share(value),
             ),
         ],

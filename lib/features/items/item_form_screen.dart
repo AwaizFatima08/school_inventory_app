@@ -17,13 +17,25 @@ class ItemFormScreen extends ConsumerStatefulWidget {
 }
 
 class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
-  static const _units = ['pcs', 'bottle', 'packet', 'bar', 'can', 'litre', 'kg', 'roll', 'box', 'pair'];
+  static const _units = [
+    'pcs',
+    'bottle',
+    'packet',
+    'bar',
+    'can',
+    'litre',
+    'kg',
+    'roll',
+    'box',
+    'pair',
+  ];
 
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.item?.name);
   late final _unit = TextEditingController(text: widget.item?.unit ?? 'pcs');
-  late final _reorder =
-      TextEditingController(text: '${widget.item?.reorderLevel ?? 5}');
+  late final _reorder = TextEditingController(
+    text: '${widget.item?.reorderLevel ?? 5}',
+  );
   late bool _active = widget.item?.active ?? true;
   bool _busy = false;
 
@@ -40,7 +52,9 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
     setState(() => _busy = true);
     final ok = await runAction(
       context,
-      () => ref.read(inventoryRepositoryProvider).saveItem(
+      () => ref
+          .read(inventoryRepositoryProvider)
+          .saveItem(
             id: widget.item?.id,
             name: _name.text,
             unit: _unit.text,
@@ -64,54 +78,63 @@ class _ItemFormScreenState extends ConsumerState<ItemFormScreen> {
       appBar: AppBar(title: Text(editing ? 'Edit item' : 'New item')),
       body: Form(
         key: _form,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _name,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(labelText: 'Item name'),
-              validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
-            ),
-            TextFormField(
-              controller: _unit,
-              decoration: const InputDecoration(labelText: 'Unit (pcs, bottle, packet…)'),
-              validator: (v) {
-                final t = (v ?? '').trim();
-                return t.isEmpty || t.length > 20 ? 'Required, max 20 letters' : null;
-              },
-            ),
-            Wrap(
-              spacing: 6,
-              children: [
-                for (final u in _units)
-                  ActionChip(label: Text(u), onPressed: () => _unit.text = u),
-              ],
-            ),
-            TextFormField(
-              controller: _reorder,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(
-                labelText: 'Reorder level',
-                helperText: 'Shown as "low stock" at or below this quantity',
+        child: ReadableWidth(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              TextFormField(
+                controller: _name,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(labelText: 'Item name'),
+                validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
               ),
-              validator: (v) => int.tryParse(v ?? '') == null ? 'Enter a number' : null,
-            ),
-            if (editing)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Active'),
-                subtitle: const Text('Inactive items are hidden from new slips'),
-                value: _active,
-                onChanged: (v) => setState(() => _active = v),
+              TextFormField(
+                controller: _unit,
+                decoration: const InputDecoration(
+                  labelText: 'Unit (pcs, bottle, packet…)',
+                ),
+                validator: (v) {
+                  final t = (v ?? '').trim();
+                  return t.isEmpty || t.length > 20
+                      ? 'Required, max 20 letters'
+                      : null;
+                },
               ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _busy ? null : _save,
-              child: const Text('Save'),
-            ),
-          ],
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (final u in _units)
+                    ActionChip(label: Text(u), onPressed: () => _unit.text = u),
+                ],
+              ),
+              TextFormField(
+                controller: _reorder,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  labelText: 'Reorder level',
+                  helperText: 'Shown as "low stock" at or below this quantity',
+                ),
+                validator: (v) =>
+                    int.tryParse(v ?? '') == null ? 'Enter a number' : null,
+              ),
+              if (editing)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Active'),
+                  subtitle: const Text(
+                    'Inactive items are hidden from new slips',
+                  ),
+                  value: _active,
+                  onChanged: (v) => setState(() => _active = v),
+                ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: _busy ? null : _save,
+                child: const Text('Save'),
+              ),
+            ],
+          ),
         ),
       ),
     );
