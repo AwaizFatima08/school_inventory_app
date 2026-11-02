@@ -54,6 +54,7 @@ secrets/
 
 # Release builds (share by WhatsApp/Drive, not git)
 release/*.apk
+release/*.aab
 
 # Generated website
 site/dist/

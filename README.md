@@ -5,8 +5,9 @@ Staff demand on paper → **incharge approves** in the app → **supervisor issu
 ledger update automatically. Low-stock alerts, receipts with approval, physical-count corrections,
 monthly reports with CSV export. English, Android.
 
-- **Package:** `com.homilabs.school_inventory` · min Android 6.0 (API 23)
+- **Package:** `com.homilabs.school_inventory` · min Android 7.0 (API 24, set by the Play bundle)
 - **Firebase project:** `school-inventory-homilabs` (owner account homilabs.smc@gmail.com), Firestore in `asia-south1`
+- **Website and web app:** https://school-supplies.homilabs.org (`/app/` is the desktop app; deploy with `site/deploy.sh`)
 - **Design, roles, data model, V2 hooks:** [docs/DESIGN.md](docs/DESIGN.md)
 
 ## First use (Fatima Fertilizer School)
