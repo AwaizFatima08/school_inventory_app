@@ -19,7 +19,7 @@ Prepared from the code (`docs/DESIGN.md`). Re-check before each release.
 No analytics or crash SDK is included.
 
 ## Other declarations
-- **Privacy policy:** https://school-supplies.homilabs.org/privacy.html
+- **Privacy policy:** https://school-supplies.homilabs.org/privacy
 - **Ads:** No.
 - **App access:** All functionality needs an account, but sign-up is open. Reviewer instructions below.
 - **Target audience:** 18+. Not designed for children.

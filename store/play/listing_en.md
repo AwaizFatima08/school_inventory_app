@@ -4,7 +4,7 @@
 **Short description** (≤ 80): `Janitorial stock for schools: demand slips, approval, issue and reports.`
 **Category:** Business · **Type:** App · **Price:** Free · **Ads:** None
 **Contact email:** support@homilabs.org · **Website:** https://school-supplies.homilabs.org
-**Privacy policy URL:** https://school-supplies.homilabs.org/privacy.html
+**Privacy policy URL:** https://school-supplies.homilabs.org/privacy
 **Account-deletion URL:** https://school-supplies.homilabs.org/delete-account.html
 
 ## Full description (≤ 4000)
